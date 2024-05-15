@@ -6,6 +6,7 @@ import requests
 import xml.etree.ElementTree as ET
 from datetime import datetime
 
+
 class USTsyYieldCurve:
     def __init__(self, date: ql.Date) -> None:
         self.as_of_date = date
@@ -14,7 +15,7 @@ class USTsyYieldCurve:
         self.api_url = f"https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value_month={self.api_str}"
         self.raw_data = {}
         self.par_yields = self.get_raw_xml_data()
-        if len(self.raw_data) > 2 :
+        if len(self.raw_data) > 2:
             print("Fetched raw data from USDT website!")
         else:
             raise Exception("Error fetching data from USDT website!")
@@ -31,10 +32,10 @@ class USTsyYieldCurve:
 
         # Calibrate the yield curve
         self.calibrate()
-        
+
     def get_discount_factor(self, date: ql.Date):
         return self.yield_curve.discount(date)
-    
+
     def get_yield_curve_handle(self):
         if self.yield_curve is not None:
             return ql.YieldTermStructureHandle(self.yield_curve)
@@ -51,34 +52,48 @@ class USTsyYieldCurve:
 
             # Define namespaces
             namespaces = {
-                'atom': 'http://www.w3.org/2005/Atom',
-                'm': 'http://schemas.microsoft.com/ado/2007/08/dataservices/metadata',
-                'd': 'http://schemas.microsoft.com/ado/2007/08/dataservices'
+                "atom": "http://www.w3.org/2005/Atom",
+                "m": "http://schemas.microsoft.com/ado/2007/08/dataservices/metadata",
+                "d": "http://schemas.microsoft.com/ado/2007/08/dataservices",
             }
 
             # Find all entry tags
-            entries = root.findall('.//atom:entry', namespaces)
+            entries = root.findall(".//atom:entry", namespaces)
 
             # Iterate through each entry tag
             for entry in entries:
                 # Find the properties inside content inside entry tags
-                content = entry.find('atom:content', namespaces)
-                properties = content.find('m:properties', namespaces)
+                content = entry.find("atom:content", namespaces)
+                properties = content.find("m:properties", namespaces)
                 if properties is not None:
                     # Iterate through each property
                     # Extract the NEW_DATE property and convert it to a datetime object
-                    new_date_str = properties.find('d:NEW_DATE', namespaces).text
+                    new_date_str = properties.find("d:NEW_DATE", namespaces).text
                     new_date = datetime.strptime(new_date_str, "%Y-%m-%dT%H:%M:%S")
 
-                    if ql.Date(new_date.day, new_date.month, new_date.year) == self.as_of_date:
+                    if (
+                        ql.Date(new_date.day, new_date.month, new_date.year)
+                        == self.as_of_date
+                    ):
                         for prop in properties:
-                            if (prop.tag.startswith('{http://schemas.microsoft.com/ado/2007/08/dataservices}BC_') 
-                            and prop.tag != '{http://schemas.microsoft.com/ado/2007/08/dataservices}BC_30YEARDISPLAY'):
-                                tag = prop.tag.split('}')[1]  # Remove namespace from the tag
-                                period_str = tag.split("BC_")[1].replace("MONTH","M").replace("YEAR","Y")
+                            if (
+                                prop.tag.startswith(
+                                    "{http://schemas.microsoft.com/ado/2007/08/dataservices}BC_"
+                                )
+                                and prop.tag
+                                != "{http://schemas.microsoft.com/ado/2007/08/dataservices}BC_30YEARDISPLAY"
+                            ):
+                                tag = prop.tag.split("}")[
+                                    1
+                                ]  # Remove namespace from the tag
+                                period_str = (
+                                    tag.split("BC_")[1]
+                                    .replace("MONTH", "M")
+                                    .replace("YEAR", "Y")
+                                )
                                 ql_period = ql.Period(period_str)
                                 raw_yield = float(prop.text)
-                                self.raw_data.update({ql_period:raw_yield})                
+                                self.raw_data.update({ql_period: raw_yield})
 
         else:
             print("Failed to fetch XML data. Status code:", response.status_code)
