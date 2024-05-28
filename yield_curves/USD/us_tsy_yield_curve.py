@@ -119,6 +119,11 @@ class USTsyYieldCurve:
             columns=["Maturities", "Zero Rates(%)"],
             index=[""] * len(tenors),
         )
+    
+    def get_forward_rate(self, date: ql.Date, tenor: str = "3M"):
+        forward_rate = self.yield_curve.forwardRate(date, date + ql.Period(str(tenor)), self.day_count,
+                                      ql.Compounded, ql.Semiannual).rate()
+        return forward_rate
 
     def calibrate(self):
         bond_helpers = []
